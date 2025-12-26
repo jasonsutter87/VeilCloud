@@ -34,6 +34,8 @@
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
+    "@types/pg": "^8.16.0",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
     "eslint": "^8.56.0",
@@ -54,14 +56,20 @@
     "uuid": "^9.0.1"
   },
   "peerDependencies": {
-    "@veilkey/core": ">=0.1.0",
     "@veilchain/sdk": ">=0.1.0",
+    "@veilkey/core": ">=0.1.0",
     "@veilsign/sdk": ">=0.1.0"
   },
   "peerDependenciesMeta": {
-    "@veilkey/core": { "optional": true },
-    "@veilchain/sdk": { "optional": true },
-    "@veilsign/sdk": { "optional": true }
+    "@veilkey/core": {
+      "optional": true
+    },
+    "@veilchain/sdk": {
+      "optional": true
+    },
+    "@veilsign/sdk": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=20.0.0"
