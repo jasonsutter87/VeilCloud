@@ -130,8 +130,11 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register Routes
   // ============================================================================
 
-  // TODO: Register route modules
-  // await server.register(storageRoutes, { prefix: '/v1/storage' });
+  const { storageRoutes } = await import('./routes/index.js');
+
+  await server.register(storageRoutes, { prefix: '/v1/storage' });
+
+  // TODO: Register additional routes
   // await server.register(projectRoutes, { prefix: '/v1/projects' });
   // await server.register(teamRoutes, { prefix: '/v1/teams' });
   // await server.register(auditRoutes, { prefix: '/v1/audit' });
