@@ -127,18 +127,24 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   // ============================================================================
+  // Register Middleware
+  // ============================================================================
+
+  const { authPlugin } = await import('./middleware/index.js');
+  await server.register(authPlugin);
+
+  // ============================================================================
   // Register Routes
   // ============================================================================
 
-  const { storageRoutes } = await import('./routes/index.js');
+  const { storageRoutes, authRoutes, projectRoutes, teamRoutes, auditRoutes } =
+    await import('./routes/index.js');
 
+  await server.register(authRoutes, { prefix: '/v1/auth' });
   await server.register(storageRoutes, { prefix: '/v1/storage' });
-
-  // TODO: Register additional routes
-  // await server.register(projectRoutes, { prefix: '/v1/projects' });
-  // await server.register(teamRoutes, { prefix: '/v1/teams' });
-  // await server.register(auditRoutes, { prefix: '/v1/audit' });
-  // await server.register(accessRoutes, { prefix: '/v1/access' });
+  await server.register(projectRoutes, { prefix: '/v1/projects' });
+  await server.register(teamRoutes, { prefix: '/v1/teams' });
+  await server.register(auditRoutes, { prefix: '/v1/audit' });
 
   return server;
 }
