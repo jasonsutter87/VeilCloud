@@ -215,3 +215,73 @@ SELECT
   WHERE tm.team_id = t.id) as members
 FROM teams t
 JOIN users u ON t.owner_id = u.id;
+
+-- ============================================================================
+-- Credentials (VeilSign integration)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS credentials (
+  id VARCHAR(255) PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+  permissions JSONB NOT NULL DEFAULT '[]',
+  one_time BOOLEAN DEFAULT false,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_credentials_user ON credentials(user_id);
+CREATE INDEX IF NOT EXISTS idx_credentials_project ON credentials(project_id);
+CREATE INDEX IF NOT EXISTS idx_credentials_expires ON credentials(expires_at);
+
+-- ============================================================================
+-- Credential Revocations
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS credential_revocations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  credential_id VARCHAR(255) NOT NULL,
+  revoked_by UUID REFERENCES users(id),
+  reason TEXT,
+  revoked_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_credential_revocations_cred ON credential_revocations(credential_id);
+
+-- ============================================================================
+-- Decryption Requests (VeilKey threshold operations)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS decryption_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  requester_id UUID NOT NULL REFERENCES users(id),
+  ciphertext_hash VARCHAR(64) NOT NULL,
+  shares_collected INT DEFAULT 0,
+  shares_needed INT NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'complete', 'expired', 'cancelled')),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_decryption_requests_team ON decryption_requests(team_id);
+CREATE INDEX IF NOT EXISTS idx_decryption_requests_status ON decryption_requests(status);
+
+-- ============================================================================
+-- Decryption Shares
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS decryption_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id UUID NOT NULL REFERENCES decryption_requests(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id),
+  share_index INT NOT NULL,
+  partial_decryption TEXT NOT NULL,
+  proof TEXT NOT NULL,
+  submitted_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(request_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_decryption_shares_request ON decryption_shares(request_id);
