@@ -934,6 +934,126 @@ k8s/
 
 ---
 
+## Phase 13: Edge Node Architecture (Raspberry Pi) 🇺🇸
+
+**Purpose**: Enable distributed edge deployment for resilient, offline-capable vote collection at polling stations.
+
+### Architecture
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│  RASPBERRY PI   │      │   MAIN SERVER   │      │    VEILPROOF    │
+│  (Edge Node)    │      │   (Central)     │      │   (Proofs)      │
+├─────────────────┤      ├─────────────────┤      ├─────────────────┤
+│                 │      │                 │      │                 │
+│  VeilCloud Edge │─────▶│  VeilCloud      │─────▶│  ZK Circuits    │
+│                 │      │  Aggregation    │      │                 │
+│  • Vote intake  │      │  • Kafka queue  │      │  • Groth16      │
+│  • Local Bloom  │      │  • Citus DB     │      │  • Batch proofs │
+│  • SQLite queue │      │  • Merkle tree  │      │                 │
+│  • Offline sync │      │                 │      │                 │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+     ARM64 / 8GB              Full stack            GPU accelerated
+```
+
+### 13.1 Edge Queue (SQLite-based)
+
+**Problem**: Network failures shouldn't lose votes. Edge must queue locally and sync when connected.
+
+#### Tasks
+- [ ] SQLite queue schema (votes pending sync)
+- [ ] Queue service (add, peek, ack, retry)
+- [ ] Configurable retry policy (exponential backoff)
+- [ ] Queue size limits and overflow handling
+- [ ] Persistence across restarts
+
+### 13.2 Edge Sync Service
+
+**Problem**: Edge nodes need to reliably forward votes to central server.
+
+#### Tasks
+- [ ] Sync worker (background process)
+- [ ] Batch forwarding (100 votes per request)
+- [ ] Central server health checks
+- [ ] Automatic retry on failure
+- [ ] Sync status reporting
+- [ ] Conflict resolution (duplicate handling)
+
+### 13.3 Edge API
+
+**Problem**: Edge needs lightweight API for vote intake without full stack.
+
+#### Tasks
+- [ ] POST /edge/votes - Accept vote, queue locally, ACK immediately
+- [ ] GET /edge/status - Queue depth, sync status, central connectivity
+- [ ] GET /edge/health - Edge node health
+- [ ] Local Bloom filter for instant duplicate rejection
+
+### 13.4 Central Aggregation API
+
+**Problem**: Central needs endpoints to receive from edge nodes.
+
+#### Tasks
+- [ ] POST /central/ingest - Receive batch from edge
+- [ ] Edge authentication (API keys per edge node)
+- [ ] Idempotency (handle duplicate batches)
+- [ ] Edge registration and management
+
+### 13.5 Edge Configuration
+
+```typescript
+// src/edge/config.ts
+export const edgeConfig = {
+  mode: 'edge' | 'central' | 'standalone',
+  central: {
+    url: process.env.CENTRAL_URL,
+    apiKey: process.env.CENTRAL_API_KEY,
+  },
+  queue: {
+    path: process.env.EDGE_QUEUE_PATH || './data/edge-queue.db',
+    maxSize: 1_000_000, // 1M votes max queued
+    batchSize: 100,
+    retryIntervalMs: 5000,
+    maxRetries: 100,
+  },
+  bloom: {
+    capacity: 1_000_000, // 1M per edge node
+    errorRate: 0.0001,
+  },
+};
+```
+
+### 13.6 Raspberry Pi Deployment
+
+#### Hardware Requirements
+- Raspberry Pi 4/5 (4GB+ RAM recommended)
+- 32GB+ SD card or USB SSD
+- Ethernet (recommended) or WiFi
+
+#### Deployment
+```bash
+# On Raspberry Pi
+export VEILCLOUD_MODE=edge
+export CENTRAL_URL=https://central.veilcloud.io
+export CENTRAL_API_KEY=edge-node-001-key
+export EDGE_QUEUE_PATH=/data/queue.db
+export STORAGE_TYPE=local
+export STORAGE_LOCAL_PATH=/data/votes
+
+npm start
+```
+
+### Deliverables
+- [ ] Edge queue service (SQLite)
+- [ ] Edge sync worker
+- [ ] Edge API endpoints
+- [ ] Central ingest endpoints
+- [ ] Edge ↔ Central authentication
+- [ ] Raspberry Pi deployment guide
+- [ ] Offline operation tested (24hr disconnection)
+
+---
+
 ## Success Metrics
 
 | Metric | Target |
@@ -966,6 +1086,7 @@ k8s/
 | Phase 10: Documentation | Pending | Low |
 | Phase 11: Production Readiness | Pending | High |
 | Phase 12: Horizontal Scaling 🚀 | Pending | **Critical for TVS** |
+| Phase 13: Edge Node (Pi) 🇺🇸 | 🔄 In Progress | **Distributed voting** |
 
 ---
 
