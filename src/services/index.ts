@@ -7,3 +7,4 @@ export { AuditService, getAuditService, type LogEventInput, type AuditResult } f
 export { TeamCryptoService, getTeamCryptoService, type DecryptShare, type TeamKeyInfo } from './teamCrypto.js';
 export { AccessService, getAccessService, type CredentialResult, type VerifyResult } from './access.js';
 export { RealtimeService, getRealtimeService, type RealtimeEvent, type RealtimeEventType } from './realtime.js';
+export { ProofService, getProofService, type InclusionProof, type ConsistencyProof, type AuditSnapshot } from './proof.js';

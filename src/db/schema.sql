@@ -285,3 +285,18 @@ CREATE TABLE IF NOT EXISTS decryption_shares (
 );
 
 CREATE INDEX IF NOT EXISTS idx_decryption_shares_request ON decryption_shares(request_id);
+
+-- ============================================================================
+-- Audit Snapshots (for consistency proofs)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS audit_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  root_hash VARCHAR(128) NOT NULL,
+  tree_size VARCHAR(64) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_snapshots_project ON audit_snapshots(project_id);
+CREATE INDEX IF NOT EXISTS idx_audit_snapshots_created ON audit_snapshots(created_at DESC);
