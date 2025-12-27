@@ -4,6 +4,7 @@
 
 export { StorageService, getStorageService, type StorageListResult } from './storage.js';
 export { LocalStorageService, getLocalStorageService } from './localStorage.js';
+export { NetlifyStorageService, getNetlifyStorageService } from './netlifyStorage.js';
 export { getStorage, getStorageType, resetStorage, type IStorageService, type StorageType } from './storageFactory.js';
 export { AuditService, getAuditService, type LogEventInput, type AuditResult } from './audit.js';
 export { TeamCryptoService, getTeamCryptoService, type DecryptShare, type TeamKeyInfo } from './teamCrypto.js';

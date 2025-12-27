@@ -1,15 +1,17 @@
 /**
  * Storage Factory
  *
- * Switches between local filesystem and S3 storage based on config.
+ * Switches between storage backends based on config.
  *
  * Usage:
- *   STORAGE_TYPE=local STORAGE_LOCAL_PATH=/path/to/data  → Local filesystem
- *   STORAGE_TYPE=s3                                      → S3/MinIO (default)
+ *   STORAGE_TYPE=local    STORAGE_LOCAL_PATH=/path     → Local filesystem
+ *   STORAGE_TYPE=netlify  NETLIFY_SITE_ID=xxx          → Netlify Blobs
+ *   STORAGE_TYPE=s3                                    → S3/MinIO (default)
  */
 
 import { StorageService, getStorageService, StorageListResult } from './storage.js';
 import { LocalStorageService, getLocalStorageService } from './localStorage.js';
+import { NetlifyStorageService, getNetlifyStorageService } from './netlifyStorage.js';
 import type {
   EncryptedBlob,
   StoragePutRequest,
@@ -35,12 +37,15 @@ export interface IStorageService {
 // Storage Type Detection
 // ============================================================================
 
-export type StorageType = 'local' | 's3';
+export type StorageType = 'local' | 's3' | 'netlify';
 
 export function getStorageType(): StorageType {
   const type = process.env.STORAGE_TYPE?.toLowerCase();
   if (type === 'local' || type === 'filesystem' || type === 'fs') {
     return 'local';
+  }
+  if (type === 'netlify' || type === 'netlify-blobs') {
+    return 'netlify';
   }
   return 's3';
 }
@@ -50,6 +55,8 @@ export function getStorageConfig(): {
   localPath?: string;
   s3Endpoint?: string;
   s3Bucket?: string;
+  netlifySiteId?: string;
+  netlifyStore?: string;
 } {
   const type = getStorageType();
   return {
@@ -57,6 +64,8 @@ export function getStorageConfig(): {
     localPath: process.env.STORAGE_LOCAL_PATH,
     s3Endpoint: process.env.S3_ENDPOINT,
     s3Bucket: process.env.S3_BUCKET,
+    netlifySiteId: process.env.NETLIFY_SITE_ID,
+    netlifyStore: process.env.NETLIFY_BLOBS_STORE,
   };
 }
 
@@ -68,7 +77,7 @@ let storageInstance: IStorageService | null = null;
 
 /**
  * Get the configured storage service
- * Automatically switches between local and S3 based on STORAGE_TYPE env var
+ * Automatically switches between local, Netlify, and S3 based on STORAGE_TYPE env var
  */
 export function getStorage(): IStorageService {
   if (storageInstance) {
@@ -77,14 +86,26 @@ export function getStorage(): IStorageService {
 
   const storageType = getStorageType();
 
-  if (storageType === 'local') {
-    const path = process.env.STORAGE_LOCAL_PATH || './data/storage';
-    console.log(`[Storage] Using LOCAL filesystem storage at: ${path}`);
-    storageInstance = getLocalStorageService();
-  } else {
-    const endpoint = process.env.S3_ENDPOINT || 'S3';
-    console.log(`[Storage] Using S3 storage at: ${endpoint}`);
-    storageInstance = getStorageService();
+  switch (storageType) {
+    case 'local': {
+      const path = process.env.STORAGE_LOCAL_PATH || './data/storage';
+      console.log(`[Storage] Using LOCAL filesystem storage at: ${path}`);
+      storageInstance = getLocalStorageService();
+      break;
+    }
+    case 'netlify': {
+      const store = process.env.NETLIFY_BLOBS_STORE || 'veilcloud';
+      console.log(`[Storage] Using NETLIFY Blobs storage (store: ${store})`);
+      storageInstance = getNetlifyStorageService();
+      break;
+    }
+    case 's3':
+    default: {
+      const endpoint = process.env.S3_ENDPOINT || 'S3';
+      console.log(`[Storage] Using S3 storage at: ${endpoint}`);
+      storageInstance = getStorageService();
+      break;
+    }
   }
 
   return storageInstance;
@@ -101,4 +122,4 @@ export function resetStorage(): void {
 // Convenience Exports
 // ============================================================================
 
-export { StorageService, LocalStorageService, StorageListResult };
+export { StorageService, LocalStorageService, NetlifyStorageService, StorageListResult };

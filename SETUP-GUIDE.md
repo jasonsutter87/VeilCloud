@@ -38,7 +38,21 @@ npm start
 # Data stored at: /Volumes/YourDrive/veilcloud-data/projects/...
 ```
 
-### Option B: Full Docker Stack
+### Option B: Netlify Blobs (Edge/Serverless)
+
+```bash
+# For Netlify Functions - no config needed! Auto-detected.
+# Just deploy to Netlify and it works.
+
+# For external access or local dev with Netlify storage:
+export STORAGE_TYPE=netlify
+export NETLIFY_SITE_ID=your-site-id
+export NETLIFY_BLOBS_TOKEN=your-token
+
+npm start
+```
+
+### Option C: Full Docker Stack
 
 ```bash
 # 1. Clone and enter directory
@@ -98,8 +112,12 @@ docker-compose logs -f api
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `STORAGE_TYPE` | `local` | Use local filesystem (testing) |
+| `STORAGE_TYPE` | `netlify` | Use Netlify Blobs (edge/serverless) |
 | `STORAGE_TYPE` | `s3` | Use S3/MinIO (default, production) |
 | `STORAGE_LOCAL_PATH` | `/path/to/data` | Local storage directory (when type=local) |
+| `NETLIFY_SITE_ID` | `your-site-id` | Netlify site ID (when type=netlify) |
+| `NETLIFY_BLOBS_TOKEN` | `token` | Netlify auth token (when type=netlify, external) |
+| `NETLIFY_BLOBS_STORE` | `veilcloud` | Netlify blob store name (default: veilcloud) |
 
 ### Optional
 
@@ -289,8 +307,11 @@ Everything runs on your machine.
 | Azure Blob | $0.018/GB | $0.05 PUT, $0.004 GET |
 | MinIO (self-hosted) | Disk cost only | N/A |
 | Cloudflare R2 | $0.015/GB | FREE (no egress!) |
+| **Netlify Blobs** | **FREE (100GB)** | **Included in Pro plan** |
 
-**Recommendation:** Use **Cloudflare R2** for storage - no egress fees!
+**Recommendations:**
+- **Edge/Serverless:** Use **Netlify Blobs** - free tier, no config needed in Netlify Functions
+- **Production:** Use **Cloudflare R2** for storage - no egress fees!
 
 ### Vote Storage Size Estimates
 
