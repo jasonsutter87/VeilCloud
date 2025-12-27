@@ -701,17 +701,17 @@ veilcloud audit export my-app --format json
 ```
 
 #### Tasks
-- [ ] Kafka client setup (kafkajs)
-- [ ] Topic configuration
+- [x] Kafka client setup (kafkajs) ✅
+- [x] Topic configuration ✅
   - `veilcloud.votes.incoming` — Vote submission events
   - `veilcloud.audit.events` — Audit log events
   - `veilcloud.merkle.updates` — Merkle tree batch updates
-- [ ] Producer service (API → Kafka)
-- [ ] Consumer workers (Kafka → DB)
-- [ ] Dead letter queue (DLQ) for failed messages
-- [ ] Exactly-once semantics (idempotency keys)
-- [ ] Consumer group management
-- [ ] Lag monitoring and alerting
+- [x] Producer service (API → Kafka) ✅
+- [x] Consumer workers (Kafka → DB) ✅
+- [x] Dead letter queue (DLQ) for failed messages ✅
+- [x] Exactly-once semantics (idempotency keys) ✅
+- [x] Consumer group management ✅
+- [x] Lag monitoring and alerting ✅
 - [ ] Backpressure handling
 
 #### Configuration
@@ -961,43 +961,43 @@ k8s/
 **Problem**: Network failures shouldn't lose votes. Edge must queue locally and sync when connected.
 
 #### Tasks
-- [ ] SQLite queue schema (votes pending sync)
-- [ ] Queue service (add, peek, ack, retry)
-- [ ] Configurable retry policy (exponential backoff)
-- [ ] Queue size limits and overflow handling
-- [ ] Persistence across restarts
+- [x] SQLite queue schema (votes pending sync) ✅
+- [x] Queue service (add, peek, ack, retry) ✅
+- [x] Configurable retry policy (exponential backoff) ✅
+- [x] Queue size limits and overflow handling ✅
+- [x] Persistence across restarts ✅
 
 ### 13.2 Edge Sync Service
 
 **Problem**: Edge nodes need to reliably forward votes to central server.
 
 #### Tasks
-- [ ] Sync worker (background process)
-- [ ] Batch forwarding (100 votes per request)
-- [ ] Central server health checks
-- [ ] Automatic retry on failure
-- [ ] Sync status reporting
-- [ ] Conflict resolution (duplicate handling)
+- [x] Sync worker (background process) ✅
+- [x] Batch forwarding (100 votes per request) ✅
+- [x] Central server health checks ✅
+- [x] Automatic retry on failure ✅
+- [x] Sync status reporting ✅
+- [x] Conflict resolution (duplicate handling) ✅
 
 ### 13.3 Edge API
 
 **Problem**: Edge needs lightweight API for vote intake without full stack.
 
 #### Tasks
-- [ ] POST /edge/votes - Accept vote, queue locally, ACK immediately
-- [ ] GET /edge/status - Queue depth, sync status, central connectivity
-- [ ] GET /edge/health - Edge node health
-- [ ] Local Bloom filter for instant duplicate rejection
+- [x] POST /edge/votes - Accept vote, queue locally, ACK immediately ✅
+- [x] GET /edge/status - Queue depth, sync status, central connectivity ✅
+- [x] GET /edge/health - Edge node health ✅
+- [x] Local Bloom filter for instant duplicate rejection ✅
 
 ### 13.4 Central Aggregation API
 
 **Problem**: Central needs endpoints to receive from edge nodes.
 
 #### Tasks
-- [ ] POST /central/ingest - Receive batch from edge
-- [ ] Edge authentication (API keys per edge node)
-- [ ] Idempotency (handle duplicate batches)
-- [ ] Edge registration and management
+- [x] POST /central/ingest - Receive batch from edge ✅
+- [x] Edge authentication (API keys per edge node) ✅
+- [x] Idempotency (handle duplicate batches) ✅
+- [x] Edge registration and management ✅
 
 ### 13.5 Edge Configuration
 
@@ -1044,11 +1044,11 @@ npm start
 ```
 
 ### Deliverables
-- [ ] Edge queue service (SQLite)
-- [ ] Edge sync worker
-- [ ] Edge API endpoints
-- [ ] Central ingest endpoints
-- [ ] Edge ↔ Central authentication
+- [x] Edge queue service (SQLite) ✅
+- [x] Edge sync worker ✅
+- [x] Edge API endpoints ✅
+- [x] Central ingest endpoints ✅
+- [x] Edge ↔ Central authentication ✅
 - [ ] Raspberry Pi deployment guide
 - [ ] Offline operation tested (24hr disconnection)
 
@@ -1084,8 +1084,8 @@ npm start
 | Phase 8: Performance & Monitoring | Pending | Medium |
 | Phase 9: SDK & Libraries | Pending | Medium |
 | Phase 10: Documentation | Pending | Low |
-| Phase 11: Production Readiness | Pending | High |
-| Phase 12: Horizontal Scaling 🚀 | Pending | **Critical for TVS** |
+| Phase 11: Production Readiness | 🔄 In Progress | High |
+| Phase 12: Horizontal Scaling 🚀 | 🔄 In Progress | **Critical for TVS** |
 | Phase 13: Edge Node (Pi) 🇺🇸 | 🔄 In Progress | **Distributed voting** |
 
 ---
