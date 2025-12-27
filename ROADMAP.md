@@ -680,34 +680,292 @@ veilcloud audit export my-app --format json
 
 ---
 
+## Phase 12: Horizontal Scaling Infrastructure 🚀
+
+**Purpose**: Enable VeilCloud to handle 100K+ votes/sec for TVS (Trustless Voting System) and other high-throughput VeilSuite applications.
+
+### 12.1 Kafka Message Queue (Async Vote Ingestion)
+
+**Problem**: Synchronous API calls bottleneck at ~20 votes/sec. Need async ingestion for 100K+/sec.
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  VeilCloud  │───▶│   Kafka     │───▶│   Worker    │───▶│  Database   │
+│  API        │    │   Topic     │    │   Pool      │    │  (Citus)    │
+│  (accepts)  │    │  (buffers)  │    │  (processes)│    │  (stores)   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+     │                                      │
+     │ immediate ACK                        │ batch Merkle updates
+     ▼                                      ▼
+   voter                              VeilChain audit
+```
+
+#### Tasks
+- [ ] Kafka client setup (kafkajs)
+- [ ] Topic configuration
+  - `veilcloud.votes.incoming` — Vote submission events
+  - `veilcloud.audit.events` — Audit log events
+  - `veilcloud.merkle.updates` — Merkle tree batch updates
+- [ ] Producer service (API → Kafka)
+- [ ] Consumer workers (Kafka → DB)
+- [ ] Dead letter queue (DLQ) for failed messages
+- [ ] Exactly-once semantics (idempotency keys)
+- [ ] Consumer group management
+- [ ] Lag monitoring and alerting
+- [ ] Backpressure handling
+
+#### Configuration
+```typescript
+// src/config/kafka.ts
+export const kafkaConfig = {
+  brokers: process.env.KAFKA_BROKERS?.split(',') || ['localhost:9092'],
+  clientId: 'veilcloud',
+  topics: {
+    votesIncoming: 'veilcloud.votes.incoming',
+    auditEvents: 'veilcloud.audit.events',
+    merkleUpdates: 'veilcloud.merkle.updates',
+  },
+  consumer: {
+    groupId: 'veilcloud-workers',
+    sessionTimeout: 30000,
+    heartbeatInterval: 3000,
+  },
+  producer: {
+    acks: -1, // all replicas
+    idempotent: true,
+    maxInFlightRequests: 5,
+  },
+};
+```
+
+### 12.2 Citus Sharding (Distributed PostgreSQL)
+
+**Problem**: Single PostgreSQL node can't handle 350M votes. Need horizontal data distribution.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     CITUS COORDINATOR                        │
+│                 (Routes queries to shards)                   │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+│   Worker 1    │ │   Worker 2    │ │   Worker N    │
+│  (shard 0-99) │ │ (shard 100-199)│ │ (shard N...)  │
+│               │ │               │ │               │
+│  elections    │ │  elections    │ │  elections    │
+│  A, B, C...   │ │  D, E, F...   │ │  X, Y, Z...   │
+└───────────────┘ └───────────────┘ └───────────────┘
+```
+
+#### Tasks
+- [ ] Citus extension setup
+- [ ] Distributed table design
+  ```sql
+  -- Shard votes by election_id (co-locate related votes)
+  SELECT create_distributed_table('votes', 'election_id');
+  SELECT create_distributed_table('nullifiers', 'election_id');
+  SELECT create_distributed_table('merkle_nodes', 'election_id');
+
+  -- Reference tables (replicated to all nodes)
+  SELECT create_reference_table('elections');
+  SELECT create_reference_table('trustees');
+  ```
+- [ ] Shard key strategy (election_id for vote co-location)
+- [ ] Reference tables for shared data
+- [ ] Query routing optimization
+- [ ] Rebalancing procedures
+- [ ] Shard health monitoring
+- [ ] Cross-shard query optimization
+
+#### Configuration
+```typescript
+// src/config/citus.ts
+export const citusConfig = {
+  coordinator: process.env.CITUS_COORDINATOR_URL,
+  shardCount: parseInt(process.env.CITUS_SHARD_COUNT || '32'),
+  replicationFactor: parseInt(process.env.CITUS_REPLICATION_FACTOR || '2'),
+  distributedTables: ['votes', 'nullifiers', 'merkle_nodes'],
+  referenceTables: ['elections', 'trustees', 'candidates'],
+};
+```
+
+### 12.3 Redis Cache (Nullifier Bloom Filters)
+
+**Problem**: Checking 350M nullifiers for duplicates is slow. Need O(1) lookups.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      VOTE SUBMISSION                         │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Redis Bloom Filter: "Is this nullifier POSSIBLY used?"     │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  election:abc123:nullifiers (Bloom Filter)          │   │
+│  │  - False positive rate: 0.01%                       │   │
+│  │  - Memory: ~1.2GB for 350M entries                  │   │
+│  │  - Lookup: O(1)                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  if NOT in bloom filter → definitely new, accept            │
+│  if IN bloom filter → check PostgreSQL to confirm          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tasks
+- [ ] Redis Bloom module (RedisBloom)
+- [ ] Bloom filter per election
+- [ ] Nullifier check flow:
+  1. Check bloom filter (O(1))
+  2. If negative → accept (definitely new)
+  3. If positive → check DB (might be false positive)
+- [ ] Credential cache (reduce VeilSign calls)
+- [ ] Session/rate limit state
+- [ ] Cluster mode configuration
+- [ ] Persistence (AOF for durability)
+- [ ] Memory management and eviction
+
+#### Configuration
+```typescript
+// src/config/redis.ts
+export const redisConfig = {
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  cluster: process.env.REDIS_CLUSTER === 'true',
+  bloomFilter: {
+    errorRate: 0.0001, // 0.01% false positive
+    capacity: 400_000_000, // 400M entries
+  },
+  cache: {
+    credentialTTL: 300, // 5 minutes
+    userTTL: 60, // 1 minute
+    permissionTTL: 30, // 30 seconds
+  },
+};
+```
+
+### 12.4 Kubernetes Autoscaling
+
+**Problem**: Fixed pod count can't handle vote bursts. Need dynamic scaling.
+
+```yaml
+# k8s/veilcloud-hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: veilcloud-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: veilcloud-api
+  minReplicas: 3
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Pods
+      pods:
+        metric:
+          name: kafka_consumer_lag
+        target:
+          type: AverageValue
+          averageValue: "1000"
+```
+
+#### Tasks
+- [ ] Horizontal Pod Autoscaler (HPA)
+  - CPU-based scaling
+  - Custom metrics (Kafka lag, request queue)
+- [ ] Vertical Pod Autoscaler (VPA) - optional
+- [ ] Cluster autoscaling (node pool)
+- [ ] Pod disruption budgets
+- [ ] Resource requests/limits tuning
+- [ ] Affinity/anti-affinity rules
+- [ ] Multi-region deployment
+- [ ] Traffic splitting (canary/blue-green)
+
+#### Kubernetes Manifests
+```
+k8s/
+├── base/
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secret.yaml
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── hpa.yaml
+├── overlays/
+│   ├── development/
+│   ├── staging/
+│   └── production/
+└── helm/
+    └── veilcloud/
+        ├── Chart.yaml
+        ├── values.yaml
+        └── templates/
+```
+
+### 12.5 Scaling Targets
+
+| Metric | Current | Phase 12 Target |
+|--------|---------|-----------------|
+| Vote throughput | ~20/sec | 100,000/sec |
+| Max concurrent elections | 1 | 1,000+ |
+| Max votes per election | ~100K | 350M+ |
+| Nullifier lookup | O(n) DB | O(1) Bloom |
+| API latency p99 | ~200ms | <50ms |
+| Availability | 99.9% | 99.99% |
+
+### Deliverables
+- [ ] Kafka cluster deployed and integrated
+- [ ] Citus-based distributed database
+- [ ] Redis Bloom filters for nullifiers
+- [ ] Kubernetes autoscaling configured
+- [ ] Load tested at 100K votes/sec
+- [ ] Monitoring dashboards for scaling metrics
+
+---
+
 ## Success Metrics
 
 | Metric | Target |
 |--------|--------|
 | Test Count | 1500+ |
 | Code Coverage | 90%+ |
-| API Uptime | 99.9% |
-| p99 Latency | <200ms |
+| API Uptime | 99.99% |
+| p99 Latency | <50ms |
 | Security Incidents | 0 critical |
 | Documentation | 100% API coverage |
+| **Vote Throughput** | **100K/sec** |
+| **Max Votes/Election** | **350M+** |
+| **Nullifier Lookup** | **O(1)** |
 
 ---
 
 ## Timeline Summary
 
-| Phase | Status |
-|-------|--------|
-| Phase 1: Core Infrastructure | ✅ Complete |
-| Phase 2: Database Layer | 🔄 In Progress |
-| Phase 3: Auth & Authorization | Pending |
-| Phase 4: Complete API Routes | Pending |
-| Phase 5: VeilSuite Integration | Pending |
-| Phase 6: Security Hardening | Pending |
-| Phase 7: Testing (1500+) | Pending |
-| Phase 8: Performance & Monitoring | Pending |
-| Phase 9: SDK & Libraries | Pending |
-| Phase 10: Documentation | Pending |
-| Phase 11: Production Readiness | Pending |
+| Phase | Status | Priority |
+|-------|--------|----------|
+| Phase 1: Core Infrastructure | ✅ Complete | - |
+| Phase 2: Database Layer | 🔄 In Progress | High |
+| Phase 3: Auth & Authorization | Pending | High |
+| Phase 4: Complete API Routes | Pending | High |
+| Phase 5: VeilSuite Integration | Pending | High |
+| Phase 6: Security Hardening | Pending | High |
+| Phase 7: Testing (1500+) | Pending | Medium |
+| Phase 8: Performance & Monitoring | Pending | Medium |
+| Phase 9: SDK & Libraries | Pending | Medium |
+| Phase 10: Documentation | Pending | Low |
+| Phase 11: Production Readiness | Pending | High |
+| Phase 12: Horizontal Scaling 🚀 | Pending | **Critical for TVS** |
 
 ---
 
