@@ -1,6 +1,6 @@
 /**
  * Team Routes
- * Team management and VeilKey integration
+ * Team management and VeilKey integration with VeilChain audit logging
  */
 
 import type { FastifyInstance } from 'fastify';
@@ -8,9 +8,10 @@ import type { FastifyInstance } from 'fastify';
 import { TeamRepository } from '../../db/repositories/team.js';
 import { UserRepository } from '../../db/repositories/user.js';
 import { getVeilKeyClient } from '../../integrations/veilkey.js';
+import { getAuditService } from '../../services/audit.js';
 import { authenticate } from '../middleware/auth.js';
 import { NotFoundError, ForbiddenError, ValidationError } from '../../lib/errors.js';
-import type { TeamRole } from '../../types.js';
+import type { TeamRole, TeamId, UserId } from '../../types.js';
 
 // ============================================================================
 // Types
@@ -33,6 +34,8 @@ interface AddMemberBody {
 // ============================================================================
 
 export async function teamRoutes(fastify: FastifyInstance): Promise<void> {
+  const audit = getAuditService();
+
   // All routes require authentication
   fastify.addHook('preHandler', authenticate);
 
@@ -95,6 +98,15 @@ export async function teamRoutes(fastify: FastifyInstance): Promise<void> {
       } catch {
         // VeilKey not available - team still works without threshold crypto
       }
+
+      // Audit log
+      await audit.logTeamCreate(
+        user.id,
+        team.id as TeamId,
+        name,
+        threshold,
+        request.ip
+      );
 
       return reply.status(201).send({
         team: {
@@ -270,6 +282,15 @@ export async function teamRoutes(fastify: FastifyInstance): Promise<void> {
         shareIndex,
         role: role ?? 'member',
       });
+
+      // Audit log
+      await audit.logTeamJoin(
+        user.id,
+        id as TeamId,
+        newMember.id as UserId,
+        shareIndex,
+        request.ip
+      );
 
       return reply.status(201).send({
         member: {
