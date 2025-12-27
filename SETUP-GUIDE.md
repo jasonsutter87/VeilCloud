@@ -20,6 +20,26 @@
 
 ## Quick Start (Local Dev)
 
+### Option A: Local Filesystem (Simplest - No Docker for storage)
+
+```bash
+# 1. Set environment to use local storage
+export STORAGE_TYPE=local
+export STORAGE_LOCAL_PATH=/Volumes/YourDrive/veilcloud-data  # Your 4TB drive
+
+# 2. Start only the services you need
+docker-compose up -d postgres redis  # Just DB and cache
+
+# 3. Run the API directly
+npm install
+npm run build
+npm start
+
+# Data stored at: /Volumes/YourDrive/veilcloud-data/projects/...
+```
+
+### Option B: Full Docker Stack
+
 ```bash
 # 1. Clone and enter directory
 cd /Users/jasonsutter/Documents/Companies/VeilSuite/VeilCloud
@@ -72,6 +92,14 @@ docker-compose logs -f api
 | `S3_SECRET_ACCESS_KEY` | S3 secret key | `wJal...` |
 | `S3_BUCKET` | S3 bucket name | `veilcloud-prod` |
 | `S3_REGION` | S3 region | `us-east-1` |
+
+### Storage Selection (Choose One)
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `STORAGE_TYPE` | `local` | Use local filesystem (testing) |
+| `STORAGE_TYPE` | `s3` | Use S3/MinIO (default, production) |
+| `STORAGE_LOCAL_PATH` | `/path/to/data` | Local storage directory (when type=local) |
 
 ### Optional
 
