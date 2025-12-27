@@ -1,12 +1,16 @@
 /**
  * Storage Routes
- * Encrypted blob CRUD operations
+ * Encrypted blob CRUD operations with VeilChain audit logging
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+
 import { getStorageService } from '../../services/storage.js';
-import { ValidationError } from '../../lib/errors.js';
-import type { StoragePutRequest } from '../../types.js';
+import { getAuditService } from '../../services/audit.js';
+import { authenticate, requirePermission } from '../middleware/auth.js';
+import { ProjectRepository } from '../../db/repositories/project.js';
+import { ForbiddenError, ValidationError } from '../../lib/errors.js';
+import type { StoragePutRequest, ProjectId } from '../../types.js';
 
 // ============================================================================
 // Request Types
@@ -25,6 +29,10 @@ interface PutStorageBody extends StoragePutRequest {}
 
 export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
   const storage = getStorageService();
+  const audit = getAuditService();
+
+  // All routes require authentication
+  fastify.addHook('preHandler', authenticate);
 
   /**
    * PUT /v1/storage/:projectId/:envName
@@ -54,15 +62,29 @@ export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
+      const user = request.user!;
       const { projectId, envName } = request.params;
 
-      // TODO: Verify credential has project:write permission
-      // const credential = request.headers['x-veilcloud-credential'];
+      // Check permission
+      const hasAccess = await ProjectRepository.hasPermission(
+        projectId,
+        user.id,
+        'blob:write'
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError('No write access to this project');
+      }
 
       const result = await storage.put(projectId, envName, request.body);
 
-      // TODO: Log to VeilChain
-      // await audit.log({ action: 'blob.write', projectId, ... });
+      // Audit log to VeilChain
+      await audit.logBlobWrite(
+        user.id,
+        projectId as ProjectId,
+        envName,
+        result.size,
+        request.ip
+      );
 
       return reply.status(201).send({
         success: true,
@@ -90,14 +112,28 @@ export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
+      const user = request.user!;
       const { projectId, envName } = request.params;
 
-      // TODO: Verify credential has project:read permission
+      // Check permission
+      const hasAccess = await ProjectRepository.hasPermission(
+        projectId,
+        user.id,
+        'blob:read'
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError('No read access to this project');
+      }
 
       const result = await storage.get(projectId, envName);
 
-      // TODO: Log to VeilChain
-      // await audit.log({ action: 'blob.read', projectId, ... });
+      // Audit log to VeilChain
+      await audit.logBlobRead(
+        user.id,
+        projectId as ProjectId,
+        envName,
+        request.ip
+      );
 
       return reply.send(result);
     }
@@ -122,14 +158,28 @@ export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
+      const user = request.user!;
       const { projectId, envName } = request.params;
 
-      // TODO: Verify credential has project:delete permission
+      // Check permission
+      const hasAccess = await ProjectRepository.hasPermission(
+        projectId,
+        user.id,
+        'blob:delete'
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError('No delete access to this project');
+      }
 
       await storage.delete(projectId, envName);
 
-      // TODO: Log to VeilChain
-      // await audit.log({ action: 'blob.delete', projectId, ... });
+      // Audit log to VeilChain
+      await audit.logBlobDelete(
+        user.id,
+        projectId as ProjectId,
+        envName,
+        request.ip
+      );
 
       return reply.status(204).send();
     }
@@ -159,10 +209,19 @@ export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
+      const user = request.user!;
       const { projectId } = request.params;
       const { continuationToken } = request.query;
 
-      // TODO: Verify credential has project:read permission
+      // Check permission
+      const hasAccess = await ProjectRepository.hasPermission(
+        projectId,
+        user.id,
+        'blob:read'
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError('No read access to this project');
+      }
 
       const result = await storage.listByProject(projectId, continuationToken);
 
@@ -189,7 +248,18 @@ export async function storageRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
+      const user = request.user!;
       const { projectId, envName } = request.params;
+
+      // Check permission
+      const hasAccess = await ProjectRepository.hasPermission(
+        projectId,
+        user.id,
+        'blob:read'
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError('No read access to this project');
+      }
 
       const metadata = await storage.getMetadata(projectId, envName);
 
