@@ -133,7 +133,13 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register Middleware
   // ============================================================================
 
-  const { authPlugin } = await import('./middleware/index.js');
+  const { authPlugin, securityPlugin } = await import('./middleware/index.js');
+  await server.register(securityPlugin, {
+    enableIPBlocking: true,
+    enableRequestAnalysis: true,
+    blockSuspiciousRequests: true,
+    logSecurityEvents: true,
+  });
   await server.register(authPlugin);
 
   // ============================================================================
