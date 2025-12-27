@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: veilcloud
+  namespace: veilcloud
+  labels:
+    app: veilcloud
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: veilcloud
+    component: api
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: veilcloud
+  namespace: veilcloud

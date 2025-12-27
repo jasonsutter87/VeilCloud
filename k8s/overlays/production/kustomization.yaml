@@ -1,0 +1,79 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: veilcloud
+
+resources:
+  - ../../base
+
+replicas:
+  - name: veilcloud-api
+    count: 5
+  - name: veilcloud-worker
+    count: 10
+
+patches:
+  # Increase resources for production
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: veilcloud-api
+      spec:
+        template:
+          spec:
+            containers:
+              - name: api
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: "512Mi"
+                  limits:
+                    cpu: "2000m"
+                    memory: "2Gi"
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: veilcloud-worker
+      spec:
+        template:
+          spec:
+            containers:
+              - name: worker
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: "1Gi"
+                  limits:
+                    cpu: "4000m"
+                    memory: "4Gi"
+
+  # Increase HPA max replicas for production
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: veilcloud-api-hpa
+      spec:
+        minReplicas: 5
+        maxReplicas: 200
+
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: veilcloud-worker-hpa
+      spec:
+        minReplicas: 10
+        maxReplicas: 100
+
+configMapGenerator:
+  - name: veilcloud-config
+    behavior: merge
+    literals:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - RATE_LIMIT_MAX=5000
+      - BLOOM_CAPACITY=400000000

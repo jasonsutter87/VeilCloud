@@ -1,0 +1,24 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: veilcloud-api-pdb
+  namespace: veilcloud
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: veilcloud
+      component: api
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: veilcloud-worker-pdb
+  namespace: veilcloud
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: veilcloud
+      component: worker

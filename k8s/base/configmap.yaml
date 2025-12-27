@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: veilcloud-config
+  namespace: veilcloud
+data:
+  # Server
+  PORT: "3000"
+  HOST: "0.0.0.0"
+  NODE_ENV: "production"
+
+  # Kafka
+  KAFKA_BROKERS: "kafka:9092"
+  KAFKA_CLIENT_ID: "veilcloud"
+  KAFKA_CONSUMER_GROUP: "veilcloud-workers"
+  KAFKA_TOPIC_VOTES: "veilcloud.votes.incoming"
+  KAFKA_TOPIC_AUDIT: "veilcloud.audit.events"
+  KAFKA_TOPIC_MERKLE: "veilcloud.merkle.updates"
+  KAFKA_TOPIC_DLQ: "veilcloud.dead-letter"
+
+  # Redis
+  REDIS_URL: "redis://redis:6379"
+  BLOOM_ERROR_RATE: "0.0001"
+  BLOOM_CAPACITY: "400000000"
+  CACHE_CREDENTIAL_TTL: "300"
+  CACHE_USER_TTL: "60"
+  CACHE_PERMISSION_TTL: "30"
+
+  # Rate Limiting
+  RATE_LIMIT_WINDOW: "60"
+  RATE_LIMIT_MAX: "1000"
+
+  # VeilSuite (internal services)
+  VEILKEY_URL: "http://veilkey:3002"
+  VEILCHAIN_URL: "http://veilchain:3003"
+  VEILSIGN_URL: "http://veilsign:3001"
+
+  # S3/MinIO
+  S3_REGION: "us-east-1"
+  S3_BUCKET: "veilcloud"
+  S3_FORCE_PATH_STYLE: "true"
+
+  # Logging
+  LOG_LEVEL: "info"
