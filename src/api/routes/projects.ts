@@ -1,6 +1,6 @@
 /**
  * Project Routes
- * Project CRUD and sharing operations
+ * Project CRUD and sharing operations with VeilChain audit logging
  */
 
 import type { FastifyInstance } from 'fastify';
@@ -8,9 +8,10 @@ import type { FastifyInstance } from 'fastify';
 import { ProjectRepository } from '../../db/repositories/project.js';
 import { EnvironmentRepository } from '../../db/repositories/environment.js';
 import { getStorageService } from '../../services/storage.js';
+import { getAuditService } from '../../services/audit.js';
 import { authenticate, requirePermission } from '../middleware/auth.js';
 import { NotFoundError, ForbiddenError } from '../../lib/errors.js';
-import type { Permission } from '../../types.js';
+import type { Permission, ProjectId, TeamId } from '../../types.js';
 
 // ============================================================================
 // Types
@@ -36,6 +37,8 @@ interface ShareProjectBody {
 // ============================================================================
 
 export async function projectRoutes(fastify: FastifyInstance): Promise<void> {
+  const audit = getAuditService();
+
   // All routes require authentication
   fastify.addHook('preHandler', authenticate);
 
@@ -66,6 +69,14 @@ export async function projectRoutes(fastify: FastifyInstance): Promise<void> {
         name,
         description,
       });
+
+      // Audit log
+      await audit.logProjectCreate(
+        user.id,
+        project.id as ProjectId,
+        name,
+        request.ip
+      );
 
       return reply.status(201).send({ project });
     }
@@ -181,6 +192,15 @@ export async function projectRoutes(fastify: FastifyInstance): Promise<void> {
       const storage = getStorageService();
       await storage.deleteByProject(id);
 
+      // Audit log before delete
+      await audit.log({
+        action: 'project.delete',
+        userId: user.id,
+        projectId: id as ProjectId,
+        context: { projectName: project.name },
+        ipAddress: request.ip,
+      });
+
       // Delete project (cascade deletes environments, shares)
       await ProjectRepository.delete(id);
 
@@ -229,6 +249,15 @@ export async function projectRoutes(fastify: FastifyInstance): Promise<void> {
         teamId,
         permissions ?? ['project:read'],
         user.id
+      );
+
+      // Audit log
+      await audit.logProjectShare(
+        user.id,
+        id as ProjectId,
+        teamId as TeamId,
+        permissions ?? ['project:read'],
+        request.ip
       );
 
       return reply.status(201).send({ success: true });
