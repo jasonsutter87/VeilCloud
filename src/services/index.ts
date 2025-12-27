@@ -8,3 +8,5 @@ export { TeamCryptoService, getTeamCryptoService, type DecryptShare, type TeamKe
 export { AccessService, getAccessService, type CredentialResult, type VerifyResult } from './access.js';
 export { RealtimeService, getRealtimeService, type RealtimeEvent, type RealtimeEventType } from './realtime.js';
 export { ProofService, getProofService, type InclusionProof, type ConsistencyProof, type AuditSnapshot } from './proof.js';
+export { SecurityService, getSecurityService, type InputValidationResult, type SecurityHeaders } from './security.js';
+export { IPReputationService, getIPReputationService, type IPReputation, type IPEvent } from './ipReputation.js';

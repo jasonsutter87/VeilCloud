@@ -300,3 +300,40 @@ CREATE TABLE IF NOT EXISTS audit_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_audit_snapshots_project ON audit_snapshots(project_id);
 CREATE INDEX IF NOT EXISTS idx_audit_snapshots_created ON audit_snapshots(created_at DESC);
+
+-- ============================================================================
+-- IP Reputation (security hardening)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS ip_reputation (
+  ip INET PRIMARY KEY,
+  score INT DEFAULT 50 CHECK (score >= 0 AND score <= 100),
+  request_count BIGINT DEFAULT 0,
+  failed_attempts INT DEFAULT 0,
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  blocked BOOLEAN DEFAULT false,
+  blocked_reason TEXT,
+  blocked_until TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_ip_reputation_blocked ON ip_reputation(blocked) WHERE blocked = true;
+CREATE INDEX IF NOT EXISTS idx_ip_reputation_score ON ip_reputation(score) WHERE score < 50;
+
+-- ============================================================================
+-- Security Events (for monitoring)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS security_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type VARCHAR(50) NOT NULL,
+  ip INET,
+  user_id UUID REFERENCES users(id),
+  severity VARCHAR(20) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical')),
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events(ip);
+CREATE INDEX IF NOT EXISTS idx_security_events_severity ON security_events(severity);
+CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC);

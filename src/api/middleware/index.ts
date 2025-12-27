@@ -11,3 +11,10 @@ export {
   authPlugin,
   type AuthenticatedUser,
 } from './auth.js';
+
+export {
+  securityPlugin,
+  validateRequestBody,
+  csrfProtection,
+  requireSecurityHeaders,
+} from './security.js';
