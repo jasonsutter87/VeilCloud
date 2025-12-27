@@ -124,6 +124,7 @@ export async function createServer(): Promise<FastifyInstance> {
         audit: '/v1/audit',
         crypto: '/v1/crypto',
         access: '/v1/access',
+        proofs: '/v1/proofs',
       },
     };
   });
@@ -147,6 +148,7 @@ export async function createServer(): Promise<FastifyInstance> {
     auditRoutes,
     cryptoRoutes,
     accessRoutes,
+    proofRoutes,
   } = await import('./routes/index.js');
 
   await server.register(authRoutes, { prefix: '/v1/auth' });
@@ -156,6 +158,7 @@ export async function createServer(): Promise<FastifyInstance> {
   await server.register(auditRoutes, { prefix: '/v1/audit' });
   await server.register(cryptoRoutes, { prefix: '/v1/crypto' });
   await server.register(accessRoutes, { prefix: '/v1/access' });
+  await server.register(proofRoutes, { prefix: '/v1/proofs' });
 
   return server;
 }

@@ -9,3 +9,4 @@ export { teamRoutes } from './teams.js';
 export { auditRoutes } from './audit.js';
 export { cryptoRoutes } from './crypto.js';
 export { accessRoutes } from './access.js';
+export { proofRoutes } from './proofs.js';
