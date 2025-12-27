@@ -117,10 +117,12 @@ export async function createServer(): Promise<FastifyInstance> {
       docs: '/docs',
       health: '/health',
       api: {
+        auth: '/v1/auth',
         storage: '/v1/storage',
         projects: '/v1/projects',
         teams: '/v1/teams',
         audit: '/v1/audit',
+        crypto: '/v1/crypto',
         access: '/v1/access',
       },
     };
@@ -137,14 +139,23 @@ export async function createServer(): Promise<FastifyInstance> {
   // Register Routes
   // ============================================================================
 
-  const { storageRoutes, authRoutes, projectRoutes, teamRoutes, auditRoutes } =
-    await import('./routes/index.js');
+  const {
+    storageRoutes,
+    authRoutes,
+    projectRoutes,
+    teamRoutes,
+    auditRoutes,
+    cryptoRoutes,
+    accessRoutes,
+  } = await import('./routes/index.js');
 
   await server.register(authRoutes, { prefix: '/v1/auth' });
   await server.register(storageRoutes, { prefix: '/v1/storage' });
   await server.register(projectRoutes, { prefix: '/v1/projects' });
   await server.register(teamRoutes, { prefix: '/v1/teams' });
   await server.register(auditRoutes, { prefix: '/v1/audit' });
+  await server.register(cryptoRoutes, { prefix: '/v1/crypto' });
+  await server.register(accessRoutes, { prefix: '/v1/access' });
 
   return server;
 }
