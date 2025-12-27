@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output (will be rebuilt in container)
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Tests
+tests
+coverage
+*.test.ts
+*.spec.ts
+jest.config.js
+
+# Documentation
+*.md
+docs
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Kubernetes
+k8s
+
+# Claude
+.claude
+
+# OS
+.DS_Store
+Thumbs.db
